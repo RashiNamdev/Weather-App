@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather App</title>
+    <link rel="stylesheet" href="style.css">
+
+
+</head>
+
+<body>
+    <main class="app" role="main" aria-labelledby="title">
+        <div class="header">
+            <div class="logo">W</div>
+            <div>
+                <h1 id="title">Weather — Live</h1>
+                <p class="lead">Type a city, town or postal code and see current temperature and conditions.</p>
+            </div>
+        </div>
+
+        <!-- <div class="controls">
+            <input id="locationInput" type="text" placeholder="e.g. London, New York, 110001" />
+            <button id="searchBtn">Search</button>
+            <button id="detectBtn">Use my location</button>
+        </div> -->
+
+        <div class="controls">
+            <input id="locationInput" type="text" placeholder="e.g. London, New York, 110001" />
+            <button id="searchBtn">Search</button>
+            <button id="detectBtn">Use my location</button>
+            <button id="clearBtn" class="clear-btn">✕</button> <!-- Clear button -->
+        </div>
+
+
+        <div id="result" class="card" hidden>
+            <div class="info">
+                <h2 id="place">—</h2>
+                <div class="meta" id="localtime">Local time —</div>
+
+                <div style="margin-top:12px" class="temp">
+                    <div>
+                        <div class="big" id="temp_c">--°C</div>
+                        <div class="small" id="condition">—</div>
+                        <div class="hint">Feels like <span id="feelslike_c">--°C</span></div>
+                    </div>
+                </div>
+
+                <div class="extras">
+                    <div class="chip">Humidity: <span id="humidity">--</span>%</div>
+                    <div class="chip">Wind: <span id="wind_kph">--</span> kph</div>
+                    <div class="chip">Cloud: <span id="cloud">--</span>%</div>
+                </div>
+            </div>
+
+            <div class="icon center">
+                <img id="iconImg" src="./logo.jpg" alt="weather icon">
+                <div id="temp_f" class="small">--°F</div>
+            </div>
+        </div>
+
+        <div id="error" class="error" hidden></div>
+
+
+    </main>
+
+    <script>
+        const API_KEY = 'cde0485c278043e8abb121317251810';
+        const BASE = 'https://api.weatherapi.com/v1/current.json';
+
+        const input = document.getElementById('locationInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const detectBtn = document.getElementById('detectBtn');
+        const resultCard = document.getElementById('result');
+        const errorEl = document.getElementById('error');
+
+        const place = document.getElementById('place');
+        const localtime = document.getElementById('localtime');
+        const temp_c = document.getElementById('temp_c');
+        const temp_f = document.getElementById('temp_f');
+        const condition = document.getElementById('condition');
+        const feelslike_c = document.getElementById('feelslike_c');
+        const humidity = document.getElementById('humidity');
+        const wind_kph = document.getElementById('wind_kph');
+        const cloud = document.getElementById('cloud');
+        const iconImg = document.getElementById('iconImg');
+
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.hidden = false;
+            resultCard.hidden = true;
+        }
+
+        function clearError() {
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+        }
+
+        function showLoading() {
+            place.textContent = 'Loading...';
+            resultCard.hidden = false;
+            clearError();
+        }
+
+        async function fetchWeather(q) {
+            showLoading();
+            const url = `${BASE}?key=${API_KEY}&q=${encodeURIComponent(q)}&aqi=yes`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`API error (${res.status})`);
+                const data = await res.json();
+                if (data.error) throw new Error(data.error.message);
+                render(data);
+            } catch (err) {
+                showError(err.message || 'Network or API error');
+            }
+        }
+
+        const clearBtn = document.getElementById("clearBtn");
+
+        clearBtn.addEventListener("click", () => {
+            input.value = "";       // Clear the text
+            input.focus();          // Optional: put cursor back in input
+            resultCard.hidden = true; // Hide previous weather result
+            clearError();           // Remove any error messages
+        });
+
+
+        function render(data) {
+            clearError();
+            const loc = data.location;
+            const cur = data.current;
+
+            place.textContent = `${loc.name}, ${loc.region || loc.country}`;
+            localtime.textContent = `Local time: ${loc.localtime}`;
+            temp_c.textContent = `${cur.temp_c}°C`;
+            temp_f.textContent = `${cur.temp_f}°F`;
+            condition.textContent = cur.condition?.text || '-';
+            feelslike_c.textContent = `${cur.feelslike_c}°C`;
+            humidity.textContent = cur.humidity;
+            wind_kph.textContent = cur.wind_kph;
+            cloud.textContent = cur.cloud;
+            iconImg.src = cur.condition?.icon ? 'https:' + cur.condition.icon : '';
+            iconImg.alt = cur.condition?.text || 'weather icon';
+            resultCard.hidden = false;
+        }
+
+        searchBtn.addEventListener('click', () => {
+            const q = input.value.trim();
+            if (!q) return showError('Please enter a location.');
+            fetchWeather(q);
+        });
+
+        input.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') searchBtn.click();
+        });
+
+        detectBtn.addEventListener('click', () => {
+            clearError();
+            if (!navigator.geolocation) return showError('Geolocation not supported.');
+            showLoading();
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude.toFixed(4);
+                    const lon = pos.coords.longitude.toFixed(4);
+                    fetchWeather(`${lat},${lon}`);
+                },
+                () => {
+                    showError('Unable to get your location. Please allow access.');
+                },
+                { timeout: 10000 }
+            );
+        });
+    </script>
+</body>
+
+</html>
